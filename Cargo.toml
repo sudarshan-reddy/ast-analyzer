@@ -1,14 +1,8 @@
-[package]
-name = "ast-analyzer"
-version = "0.1.0"
-edition = "2021"
+[workspace]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+members = [
+    "analyzer",
+    "bin/docthis",
+]
 
-[dependencies]
-tree-sitter = "0.20.10"
-tree-sitter-go = "0.20.0"
-anyhow = "1.0.81"
-clap = "3.0"
-ollama-rs = "0.1.7"
-tokio = { version = "1.36.0", features = ["full"] }
+resolver = "2"

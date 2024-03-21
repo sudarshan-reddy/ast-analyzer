@@ -1,7 +1,9 @@
 use clap::{App, Arg};
 use std::fs;
 
-mod lib;
+use analyzer::parser::LangParser;
+use analyzer::llm::LLMClient;
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -21,11 +23,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = matches.value_of("file").unwrap();
     let contents = fs::read_to_string(file).expect("Something went wrong reading the file");
 
-    let mut parser = lib::LangParser::new().unwrap();
+    let mut parser = LangParser::new().unwrap();
     let tree = parser.parse(&contents).expect("Error parsing code");
     parser.traverse(&tree.root_node(), contents.as_bytes());
 
-    let client = lib::LLMClient::new();
+    let client = LLMClient::new();
     for message in parser.rx.iter() {
         let result = client.get("golang", &message).await;
         println!("{}", result.unwrap());
@@ -33,3 +35,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
