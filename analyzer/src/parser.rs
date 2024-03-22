@@ -29,18 +29,11 @@ impl LangParser {
     }
 
     pub fn traverse(&self, node: &Node, source_code: &[u8]) {
-        match node.kind() {
-            // For struct type nodes, print the full struct declaration
-            "type_spec" if node.child_by_field_name("type").map_or(false, |n| n.kind() == "struct_type") => {
-                let text = self.get_node_text(node, source_code);
-                self.tx.send(text).expect("Error sending struct");
-            },
+        if node.kind() == "method_declaration" {
+            // TODO: Add more node types to extract
             // For method declaration nodes, print the full method including its body
-            "method_declaration" => {
-                let text = self.get_node_text(node, source_code);
-                self.tx.send(text).expect("Error sending method");
-            },
-            _ => {}
+            let text = self.get_node_text(node, source_code);
+            self.tx.send(text).expect("Error sending method");
         }
 
         // Recursively traverse child nodes
