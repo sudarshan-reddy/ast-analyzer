@@ -21,9 +21,9 @@ impl LLMClient {
         let prompt = format!(r#"Understand what this method does and 
             add a detailed doc comment explaining that to the following {} method:
             {}
-            The doc comment should describe what the method does. 
-            Return the method implementaion with the doc comment above the method
-            as a go code comment. Don't include any explanations in your response."#, language, code);
+            The doc comment should describe what the method does. Return the doc comment as a code comment above the method implementaion and include both the doc comment and method in your response
+            as a go code comment. Don't include any explanations or anything other than the required doc comments in your response.
+            "#, language, code);
 
         let response = self.inner.generate(GenerationRequest::new(model, prompt)).await;
         match response {
@@ -34,3 +34,5 @@ impl LLMClient {
 }
 
 
+// Show a demo with inter dependency between multiple modules , and different code bases and
+// illustrate how context is shared with them.

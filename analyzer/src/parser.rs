@@ -1,34 +1,56 @@
-use tree_sitter::{Language, Parser, Node};
+use tree_sitter::{Parser, Node};
 use anyhow::Result;
 use std::sync::mpsc::{Sender, Receiver};
 
 pub struct LangParser {
     pub language : Language,
-    pub parser : Parser,
+    pub tree : tree_sitter::Tree,
+    pub source_code: Vec<u8>,
     pub tx: Sender<String>,
     pub rx: Receiver<String>,
 }
 
+#[derive(Copy, Clone)]
+pub enum Language{ 
+    Go
+}
+
 impl LangParser {
-    pub fn new() ->  Result<LangParser> {
-        let language = tree_sitter_go::language();
-        let mut parser = Parser::new();
+    // TODO: This should take the whole directory so all the symbols can be extracted
+    pub fn new(language: Language, code: &str) ->  Result<LangParser> {
+        let mut parser = LangParser::new_parser(language)?;
+        let tree = parser.parse(code, None).ok_or(anyhow::anyhow!("Error parsing code"))?;
+        let source_code = code.as_bytes();
         let (tx, rx) = std::sync::mpsc::channel();
-        parser.set_language(language)?;
         Ok(LangParser {
             language,
-            parser,
+            tree,
+            source_code: source_code.to_vec(),
             tx,
             rx,
         })
     }
 
-    pub fn parse(&mut self, code: &str) -> anyhow::Result<tree_sitter::Tree> {
-        let parsed = self.parser.parse(code, None).ok_or(anyhow::anyhow!("Error parsing code"))?;
-        Ok(parsed)
+    pub fn new_parser(language: Language) -> Result<Parser> {
+        let mut parser = Parser::new();
+        match language {
+            Language::Go => parser.set_language(tree_sitter_go::language())?,
+        };
+        Ok(parser)
     }
 
-    pub fn traverse(&self, node: &Node, source_code: &[u8]) {
+
+    pub fn retrieve_all_methods(&self) -> Vec<String> {
+        let root = self.tree.root_node();
+        let mut methods = Vec::new();
+        self.traverse(&root, &self.source_code);
+        for message in self.rx.iter() {
+            methods.push(message);
+        }
+        methods
+    }
+
+    fn traverse(&self, node: &Node, source_code: &[u8]) {
         if node.kind() == "method_declaration" {
             // TODO: Add more node types to extract
             // For method declaration nodes, print the full method including its body
@@ -43,7 +65,7 @@ impl LangParser {
     }
 
     // Helper function to extract the text for a given node
-    pub fn get_node_text(&self, node: &Node, source_code: &[u8]) -> String {
+    fn get_node_text(&self, node: &Node, source_code: &[u8]) -> String {
         let start_byte = node.start_byte();
         let end_byte = node.end_byte();
         let text = &source_code[start_byte..end_byte];

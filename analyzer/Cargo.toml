@@ -10,3 +10,7 @@ tree-sitter = "0.20.10"
 tree-sitter-go = "0.20.0"
 anyhow = "1.0.81"
 ollama-rs = "0.1.7"
+tokio = { version = "1.36.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
