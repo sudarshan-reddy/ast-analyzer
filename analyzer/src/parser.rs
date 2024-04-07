@@ -1,25 +1,27 @@
-use tree_sitter::{Parser, Node};
 use anyhow::Result;
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::{Receiver, Sender};
+use tree_sitter::{Node, Parser};
 
 pub struct LangParser {
-    pub language : Language,
-    pub tree : tree_sitter::Tree,
+    pub language: Language,
+    pub tree: tree_sitter::Tree,
     pub source_code: Vec<u8>,
     pub tx: Sender<String>,
     pub rx: Receiver<String>,
 }
 
 #[derive(Copy, Clone)]
-pub enum Language{ 
-    Go
+pub enum Language {
+    Go,
 }
 
 impl LangParser {
     // TODO: This should take the whole directory so all the symbols can be extracted
-    pub fn new(language: Language, code: &str) ->  Result<LangParser> {
+    pub fn new(language: Language, code: &str) -> Result<LangParser> {
         let mut parser = LangParser::new_parser(language)?;
-        let tree = parser.parse(code, None).ok_or(anyhow::anyhow!("Error parsing code"))?;
+        let tree = parser
+            .parse(code, None)
+            .ok_or(anyhow::anyhow!("Error parsing code"))?;
         let source_code = code.as_bytes();
         let (tx, rx) = std::sync::mpsc::channel();
         Ok(LangParser {
@@ -38,7 +40,6 @@ impl LangParser {
         };
         Ok(parser)
     }
-
 
     pub fn retrieve_all_methods(&self) -> Vec<String> {
         let root = self.tree.root_node();
@@ -72,6 +73,4 @@ impl LangParser {
 
         String::from_utf8(text.to_vec()).expect("Found invalid UTF-8")
     }
-
 }
-

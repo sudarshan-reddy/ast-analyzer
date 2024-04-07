@@ -1,10 +1,10 @@
 use anyhow::Result;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::str::from_utf8;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tracing::{info, Level};
+use tracing::{info, warn, Level};
 use tracing_subscriber;
 
 pub struct LspClient {
@@ -78,7 +78,7 @@ impl LspClient {
         });
 
         self.send_request(&initialize_request).await?;
-        let init_resp = self.read_response().await?;
+        let init_resp = self.read_response(None).await?;
         info!("Initialize response: {:?}", from_utf8(&init_resp));
 
         let initialized_notification = json!({
@@ -112,6 +112,7 @@ impl LspClient {
             "jsonrpc": "2.0",
             "id": 2,
             "method": "textDocument/definition",
+            "notification": 0,
             "params": {
                 "textDocument": {
                     "uri": format!("file://{}", file_path),
@@ -124,7 +125,7 @@ impl LspClient {
         });
 
         self.send_request(&definition_request).await?;
-        let def = self.read_response().await?;
+        let def = self.read_response(Some(2)).await?;
         info!("Definition: {:?}", from_utf8(&def));
         Ok(())
     }
@@ -139,34 +140,50 @@ impl LspClient {
         Ok(())
     }
 
-    async fn read_response(&mut self) -> Result<Vec<u8>> {
-        let mut header_buffer = Vec::new();
-        // Read headers
-        while !header_buffer.ends_with(b"\r\n\r\n") {
-            let mut buffer = [0; 1]; // Read one byte at a time
-            self.stream.read_exact(&mut buffer).await?;
-            header_buffer.push(buffer[0]);
-        }
+    async fn read_response(&mut self, expected_id: Option<u64>) -> Result<Vec<u8>> {
+        loop {
+            let mut header_buffer = Vec::new();
+            // Read headers
+            while !header_buffer.ends_with(b"\r\n\r\n") {
+                let mut buffer = [0; 1]; // Read one byte at a time
+                self.stream.read_exact(&mut buffer).await?;
+                header_buffer.push(buffer[0]);
+            }
 
-        // Convert headers to string and find Content-Length
-        let header_str = String::from_utf8(header_buffer)?;
-        let content_length = header_str
-            .lines()
-            .find_map(|line| {
-                if line.starts_with("Content-Length:") {
-                    line["Content-Length:".len()..].trim().parse::<usize>().ok()
+            // Convert headers to string and find Content-Length
+            let header_str = String::from_utf8(header_buffer)?;
+            let content_length = header_str
+                .lines()
+                .find_map(|line| {
+                    if line.starts_with("Content-Length:") {
+                        line["Content-Length:".len()..].trim().parse::<usize>().ok()
+                    } else {
+                        None
+                    }
+                })
+                .ok_or_else(|| anyhow::anyhow!("Content-Length header not found"))?;
+
+            // Read the message body based on Content-Length
+            let mut response_body = vec![0; content_length];
+            self.stream.read_exact(&mut response_body).await?;
+
+            // Attempt to deserialize the response to check its ID
+            if let Ok(response) = serde_json::from_slice::<Value>(&response_body) {
+                // If no specific ID is expected, or if this message matches the expected ID, return it
+                if expected_id.is_none()
+                    || response.get("id") == expected_id.map(serde_json::Value::from).as_ref()
+                {
+                    return Ok(response_body);
                 } else {
-                    None
+                    // Log or handle interim messages
+                    info!("Interim or unrelated LSP message received: {:?}", response);
+                    // Continue looping to wait for the correct response
                 }
-            })
-            .ok_or_else(|| anyhow::anyhow!("Content-Length header not found"))?;
-
-        // Read the message body based on Content-Length
-        let mut response_body = vec![0; content_length];
-        self.stream.read_exact(&mut response_body).await?;
-
-        info!("Received response body of length: {}", response_body.len());
-
-        Ok(response_body)
+            } else {
+                // Handle or log parsing error
+                warn!("Failed to parse LSP response as JSON.");
+                // Depending on your error handling strategy, you might return an error here
+            }
+        }
     }
 }

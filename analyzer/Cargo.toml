@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 tree-sitter = "0.20.10"
+walkdir = "2"
 tree-sitter-go = "0.20.0"
 anyhow = "1.0.81"
 ollama-rs = "0.1.7"
