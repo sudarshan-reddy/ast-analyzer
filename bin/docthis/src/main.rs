@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use analyzer::indexer::IndexStore;
-use analyzer::{indexer::MethodIndexer, memory::InMemoryIndexStore, tree::CodeWalker};
+use analyzer::{indexer::GoIndexer, memory::InMemoryIndexStore, tree::CodeWalker};
 use clap::{App, Arg};
 use tracing::{debug, Level};
 use tracing_subscriber;
@@ -30,8 +30,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dir = matches.value_of("dir").expect("dir name incorrect");
 
     let storage = Arc::new(Mutex::new(InMemoryIndexStore::new()));
-    let indexer = MethodIndexer::new(storage.clone());
-    CodeWalker::new_project(dir, indexer)
+    let go_indexer = GoIndexer::new(storage.clone());
+    CodeWalker::new_project(dir, go_indexer)
         .index_project()
         .await?;
 

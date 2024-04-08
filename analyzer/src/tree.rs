@@ -52,6 +52,7 @@ impl<I: Indexer> CodeWalker<I> {
                         // TODO: Ideally this should not exit and continue with a warning.
                         .ok_or(anyhow::anyhow!("Error parsing code"))?;
                     let root_node = tree.root_node();
+                    // TODO: Think about how this changes based on the language.
                     self.indexer.index(&root_node, &source_code.as_bytes());
                 }
                 _ => {
