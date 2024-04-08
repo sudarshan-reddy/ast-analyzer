@@ -43,7 +43,7 @@ impl<S: IndexStore + Clone + 'static> GoIndexer<S> {
 
     fn get_struct_name(&self, node: &Node, source_code: &[u8]) -> Option<String> {
         for child in node.children(&mut node.walk()) {
-            if child.kind() == "type_identifier" {
+            if child.kind() == "parameter_list" {
                 return Some(self.get_node_text(&child, source_code));
             }
         }
