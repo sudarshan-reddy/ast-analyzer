@@ -1,7 +1,10 @@
+use std::sync::{Arc, Mutex};
+
 use tree_sitter::Node;
 
 use crate::tree::Indexer;
 
+#[derive(Clone)]
 pub struct IndexData {
     pub value: String,
 }
@@ -9,14 +12,15 @@ pub struct IndexData {
 pub trait IndexStore {
     fn set(&mut self, key: &str, value: IndexData);
     fn get(&self, key: &str) -> String;
+    fn get_all(&self) -> std::collections::HashMap<String, String>;
 }
 
-pub struct MethodIndexer {
-    store: Box<dyn IndexStore>,
+pub struct MethodIndexer<S: IndexStore + Clone> {
+    store: Arc<Mutex<S>>,
 }
 
-impl MethodIndexer {
-    pub fn new(store: Box<dyn IndexStore>) -> Self {
+impl<S: IndexStore + Clone + 'static> MethodIndexer<S> {
+    pub fn new(store: Arc<Mutex<S>>) -> Self {
         MethodIndexer { store }
     }
 
@@ -38,8 +42,8 @@ impl MethodIndexer {
     }
 }
 
-impl Indexer for MethodIndexer {
-    fn index(&mut self, node: &Node, source_code: &[u8]) {
+impl<S: IndexStore + Clone + 'static> Indexer for MethodIndexer<S> {
+    fn index(&self, node: &Node, source_code: &[u8]) {
         if node.kind() == "method_declaration" {
             // Get the name of the method
             // TODO: Add more node types to extract
@@ -47,7 +51,8 @@ impl Indexer for MethodIndexer {
             let text = self.get_node_text(node, source_code);
             let method_name = self.get_method_name(node, source_code);
             if let Some(method_name) = method_name {
-                self.store.set(
+                let mut store = self.store.lock().unwrap();
+                store.set(
                     &method_name.clone(),
                     IndexData {
                         value: text.clone(),

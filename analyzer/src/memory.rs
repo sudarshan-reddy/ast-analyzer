@@ -1,7 +1,9 @@
 use crate::indexer::{IndexData, IndexStore};
+use std::collections::HashMap;
 
+#[derive(Clone)]
 pub struct InMemoryIndexStore {
-    inner: std::collections::HashMap<String, IndexData>,
+    inner: HashMap<String, IndexData>,
 }
 
 impl InMemoryIndexStore {
@@ -19,5 +21,12 @@ impl IndexStore for InMemoryIndexStore {
 
     fn get(&self, key: &str) -> String {
         self.inner.get(key).unwrap().value.clone()
+    }
+
+    fn get_all(&self) -> HashMap<String, String> {
+        self.inner
+            .iter()
+            .map(|(k, v)| (k.clone(), v.value.clone()))
+            .collect()
     }
 }

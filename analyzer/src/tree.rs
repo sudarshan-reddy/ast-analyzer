@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use tracing::warn;
+use tracing::{info, trace};
 /// tree.rs implements CodeWalker. The goal of this package is when given a method,
 /// it will comb through the project and get all the defintions and references of that method.
 use tree_sitter::{self, Node, Parser};
@@ -18,7 +18,7 @@ where
 }
 
 pub trait Indexer {
-    fn index(&mut self, node: &Node, source_code: &[u8]);
+    fn index(&self, node: &Node, source_code: &[u8]);
 }
 
 struct FileData {
@@ -40,6 +40,7 @@ impl<I: Indexer> CodeWalker<I> {
         for file in self.files.iter() {
             match file.language.as_str() {
                 "go" => {
+                    info!("Indexing file: {}, language: {}", file.file, file.language);
                     let parser = parsers.entry("go").or_insert_with(|| {
                         let mut parser = Parser::new();
                         parser.set_language(tree_sitter_go::language()).unwrap();
@@ -54,7 +55,7 @@ impl<I: Indexer> CodeWalker<I> {
                     self.indexer.index(&root_node, &source_code.as_bytes());
                 }
                 _ => {
-                    warn!("Unsupported language: {}", file.language);
+                    trace!("Unsupported language: {}", file.language);
                     continue;
                 }
             }
